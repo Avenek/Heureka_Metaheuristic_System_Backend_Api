@@ -1,11 +1,12 @@
+using DotNetEnv;
 using FluentValidation.AspNetCore;
+using Heureka_Metaheuristic_System_Backend_Api.Configuration;
 using Heureka_Metaheuristic_System_Backend_Api.Database;
 using Heureka_Metaheuristic_System_Backend_Api.Middleware;
 using Heureka_Metaheuristic_System_Backend_Api.Registrars;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi;
 using NLog.Web;
-using DotNetEnv;
 
 var path = Path.GetFullPath("../../.env");
 
@@ -25,6 +26,10 @@ builder.Services.AddDbContext<DatabaseContext>(options =>
     options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString));
 }, ServiceLifetime.Transient);
 
+var appSettings = builder.Configuration
+    .Get<AppSettings>();
+
+builder.Services.AddSingleton(appSettings);
 Registar registar = new Registar();
 registar.ConfigureServices(builder.Services);
 

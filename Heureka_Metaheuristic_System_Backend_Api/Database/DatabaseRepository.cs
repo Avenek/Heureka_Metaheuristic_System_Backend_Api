@@ -1,5 +1,6 @@
 ﻿using Heureka_Metaheuristic_System_Backend_Api.Contracts;
 using Heureka_Metaheuristic_System_Backend_Api.Contracts.Generic;
+using Heureka_Metaheuristic_System_Backend_Api.Exceptions;
 using Microsoft.EntityFrameworkCore;
 using System.Linq;
 using System.Linq.Expressions;
@@ -57,7 +58,16 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Database
 
         public void Insert(object entity) => Insert(entity as TEntity);
 
-        public TEntity? GetById(object? id) => DbSet.Find(id);
+        public TEntity GetById(object? id)
+        {
+            var entity = DbSet.Find(id);
+            if(entity is null)
+            {
+                throw new NotFoundException($"Entity of type {typeof(TEntity).Name} with id {id} not found.");
+            }
+
+            return entity;
+        }
 
         public void Insert(TEntity? entity)
         {

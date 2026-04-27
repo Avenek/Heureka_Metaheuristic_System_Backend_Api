@@ -5,13 +5,13 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Database.QueryCollections.Gen
 {
     public static partial class GenericDatabaseQueryCollection
     {
-        public static IEnumerable<T> GetEntitiesBy<T>(this RepositoryCollection repositoryCollection,
+        public static IQueryable<T> GetEntitiesBy<T>(this RepositoryCollection repositoryCollection,
             Expression<Func<T, bool>> predicate,
             Expression<Func<T, T>>? selector = null) where T : class, IEntity
         {
-            var avatars = repositoryCollection.Get<T>().Query();
+            var entities = repositoryCollection.Get<T>().Query();
 
-            var whereQueryable = predicate is null ? avatars : avatars.Where(predicate);
+            var whereQueryable = predicate is null ? entities : entities.Where(predicate);
             var selectQueryable = selector is null ? whereQueryable : whereQueryable.Select(selector);
 
             return selectQueryable;

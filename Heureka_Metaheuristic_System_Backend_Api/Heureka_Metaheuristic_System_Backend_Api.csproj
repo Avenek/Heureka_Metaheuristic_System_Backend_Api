@@ -28,8 +28,4 @@
     <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="10.1.3" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="ModelsDto\Requests\" />
-  </ItemGroup>
-
 </Project>

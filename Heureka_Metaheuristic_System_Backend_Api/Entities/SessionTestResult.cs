@@ -2,7 +2,7 @@
 
 namespace Heureka_Metaheuristic_System_Backend_Api.Entities
 {
-    public class SessionTestResult : IEntity
+    public class SessionTestResult : IEntity, IHasId
     {
         public uint Id { get; set; }
 

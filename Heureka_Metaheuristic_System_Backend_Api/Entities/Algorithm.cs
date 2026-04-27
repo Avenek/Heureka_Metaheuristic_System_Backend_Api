@@ -2,7 +2,7 @@
 
 namespace Heureka_Metaheuristic_System_Backend_Api.Entities
 {
-    public class Algorithm : IEntity
+    public class Algorithm : IEntity, IHasId
     {
         public uint Id { get; set; }
         public string Name { get; set; } = null!;

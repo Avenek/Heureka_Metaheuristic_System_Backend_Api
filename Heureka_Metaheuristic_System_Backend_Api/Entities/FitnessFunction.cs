@@ -2,7 +2,7 @@
 
 namespace Heureka_Metaheuristic_System_Backend_Api.Entities
 {
-    public class FitnessFunction : IEntity
+    public class FitnessFunction : IEntity, IHasId
     {
         public uint Id { get; set; }
         public string Name { get; set; } = null!;
