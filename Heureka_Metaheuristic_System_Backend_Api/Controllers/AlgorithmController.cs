@@ -36,7 +36,7 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Controllers
         public async Task<ActionResult> CreateAlgorithm([FromForm] CreateAlgorithmDto algorithmToCreate, IFormFile file)
         {
             var createdAlgorithm = await algorithmService.CreateAlgorithm(algorithmToCreate, file);
-            return Created($"api/v1/algorithms/{createdAlgorithm.Id}", createdAlgorithm);
+            return CreatedAtAction(nameof(GetById), new { id = createdAlgorithm.Id }, createdAlgorithm);
         }
 
         [HttpPatch("{id}")]

@@ -7,7 +7,7 @@ namespace Heureka_Metaheuristic_System_Backend_Api.ModelsDto.Validators
     {
         public UpdateAlgorithmDtoValidator()
         {
-            Include(new AlgorithmNameRules());
+            Include(new NameRules());
         }
     }
 }

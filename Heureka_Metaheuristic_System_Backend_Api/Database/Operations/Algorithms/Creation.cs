@@ -1,14 +1,6 @@
-﻿
-
-using Heureka_Metaheuristic_System_Backend_Api.Contracts;
-using Heureka_Metaheuristic_System_Backend_Api.Database.QueryCollections.Algorithms;
-using Heureka_Metaheuristic_System_Backend_Api.Database.QueryCollections.Generic;
+﻿using Heureka_Metaheuristic_System_Backend_Api.Database.QueryCollections.Generic;
 using Heureka_Metaheuristic_System_Backend_Api.Entities;
 using Heureka_Metaheuristic_System_Backend_Api.Exceptions;
-using Heureka_Metaheuristic_System_Backend_Api.MappingProfiles;
-using Heureka_Metaheuristic_System_Backend_Api.ModelsDto;
-using Heureka_Metaheuristic_System_Backend_Api.ModelsDto.Requests;
-using Heureka_Metaheuristic_System_Backend_Api.ModelsDto.Responses.Algorithmss;
 
 namespace Heureka_Metaheuristic_System_Backend_Api.Database.Operations.Algorithms
 {

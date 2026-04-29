@@ -10,6 +10,7 @@ using Heureka_Metaheuristic_System_Backend_Api.ModelsDto.Responses.Algorithmss;
 using Heureka_Metaheuristic_System_Backend_Api.Reflection;
 using Heureka_Metaheuristic_System_Backend_Api.Reflection.Adapters;
 using Heureka_Metaheuristic_System_Backend_Api.Reflection.ReflectionRequiredInterfaces;
+using Microsoft.EntityFrameworkCore;
 
 namespace Heureka_Metaheuristic_System_Backend_Api.Services
 {
@@ -50,10 +51,8 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Services
         public async Task<AlgorithmDto> CreateAlgorithm(CreateAlgorithmDto algorithmToCreateDto, IFormFile file)
         {
             using var executionService = executionServiceFactory();
-            ValidateAlgorithmName(executionService, algorithmToCreateDto.Name);
-            ValidateAlgorithmFile(file);
-             
-            await CreateAlgorithmFile(file);
+            await ValidateAlgorithmName(executionService, algorithmToCreateDto.Name);
+            DllFileValidator.ValidateFile(file, GetAlgorithmFilePath(file.FileName));
 
             try
             {
@@ -75,6 +74,8 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Services
                     }).ToList()
                 };
 
+                await CreateAlgorithmFile(file);
+
                 if (!await executionService.PerformCreateAlgorithmOperations(algorithm))
                 {
                     throw new BadRequestException("Failed to create algorithm.");
@@ -83,7 +84,7 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Services
                 var mapper = executionService.GetMappingService<DataDtoMappingService>().Mapper;
                 return mapper.Map<AlgorithmDto>(algorithm);
             }
-            catch (BadRequestException)
+            catch (Exception)
             {
                 DeleteAlgorithmFile(file.FileName);
                 throw;
@@ -148,28 +149,12 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Services
             return await executionService.GetAlgorithmById(id);
         }
 
-        private void ValidateAlgorithmName(DatabaseOperationExecutionService executionService, string algorithmName)
+        private async Task ValidateAlgorithmName(DatabaseOperationExecutionService executionService, string algorithmName)
         {
-            var existsAlgorithmWithSameName = executionService.GetEntitiesBy<Algorithm>(algorithm => algorithm.Name == algorithmName, a => new Algorithm() { Id = a.Id }).Any();
+            var existsAlgorithmWithSameName = await executionService.GetEntitiesBy<Algorithm>(algorithm => algorithm.Name == algorithmName, a => new Algorithm() { Id = a.Id }).AnyAsync();
             if (existsAlgorithmWithSameName)
             {
                 throw new BadRequestException("An algorithm with the same name already exists.");
-            }
-        }
-
-        private void ValidateAlgorithmFile(IFormFile file)
-        {
-            if (file == null || file.Name.Length == 0)
-            {
-                throw new BadRequestException("File is empty.");
-            }
-            if (Path.GetExtension(file.FileName) != ".dll")
-            {
-                throw new BadRequestException("File has an invalid extension.");
-            }
-            if (File.Exists(Path.Combine(appSettings.DllPaths.AlgorithmsPath, file.FileName)))
-            {
-                throw new BadRequestException("A file with the same name already exists on the server.");
             }
         }
     }

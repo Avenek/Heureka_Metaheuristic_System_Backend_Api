@@ -1,4 +1,5 @@
-﻿using Heureka_Metaheuristic_System_Backend_Api.Services;
+﻿using Heureka_Metaheuristic_System_Backend_Api.ModelsDto.Requests.FitnessFunctions;
+using Heureka_Metaheuristic_System_Backend_Api.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Heureka_Metaheuristic_System_Backend_Api.Controllers
@@ -26,6 +27,13 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Controllers
         {
             var fitnessFunction = await fitnessFunctionService.GetById(id);
             return Ok(fitnessFunction);
+        }
+
+        [HttpPost]
+        public async Task<ActionResult> CreateFitnessFunction([FromForm] CreateFitnessFunctionDto fitnessFunctionToCreate, IFormFile file)
+        {
+            var createdFitnessFunction = await fitnessFunctionService.CreateFitnessFunction(fitnessFunctionToCreate, file);
+            return CreatedAtAction(nameof(GetById), new { id = createdFitnessFunction.Id }, createdFitnessFunction);
         }
     }
 }
