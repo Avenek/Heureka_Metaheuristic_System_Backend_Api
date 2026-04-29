@@ -5,7 +5,7 @@ using Heureka_Metaheuristic_System_Backend_Api.Database.Operations.Generic;
 using Heureka_Metaheuristic_System_Backend_Api.Entities;
 using Heureka_Metaheuristic_System_Backend_Api.Exceptions;
 using Heureka_Metaheuristic_System_Backend_Api.MappingProfiles;
-using Heureka_Metaheuristic_System_Backend_Api.ModelsDto.Requests;
+using Heureka_Metaheuristic_System_Backend_Api.ModelsDto.Requests.Algorithms;
 using Heureka_Metaheuristic_System_Backend_Api.ModelsDto.Responses.Algorithmss;
 using Heureka_Metaheuristic_System_Backend_Api.Reflection;
 using Heureka_Metaheuristic_System_Backend_Api.Reflection.Adapters;

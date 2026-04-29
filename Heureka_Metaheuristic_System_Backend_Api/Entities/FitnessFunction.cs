@@ -11,7 +11,7 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Entities
         public bool IsRemoveable { get; set; }
 
         public byte? Dimension { get; set; }
-        public string Domain { get; set; } = "{}";
+        public string DomainPerVariable { get; set; } = "[]";
 
         public ICollection<SessionTest> SessionTests { get; set; } = new List<SessionTest>();
     }

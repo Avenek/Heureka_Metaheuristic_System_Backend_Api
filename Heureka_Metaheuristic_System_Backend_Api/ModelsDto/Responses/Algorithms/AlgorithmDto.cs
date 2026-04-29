@@ -6,7 +6,7 @@ namespace Heureka_Metaheuristic_System_Backend_Api.ModelsDto.Responses.Algorithm
     [AutoMap(typeof(Algorithm), ReverseMap = true)]
     public class AlgorithmDto
     {
-        public int Id { get; set; }
+        public uint Id { get; set; }
         public required string Name { get; set; }
         public required string FileName { get; set; }
         public bool IsRemoveable { get; set; }

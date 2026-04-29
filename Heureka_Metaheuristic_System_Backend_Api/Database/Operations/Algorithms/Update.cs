@@ -2,7 +2,7 @@
 using Heureka_Metaheuristic_System_Backend_Api.Entities;
 using Heureka_Metaheuristic_System_Backend_Api.Exceptions;
 using Heureka_Metaheuristic_System_Backend_Api.MappingProfiles;
-using Heureka_Metaheuristic_System_Backend_Api.ModelsDto.Requests;
+using Heureka_Metaheuristic_System_Backend_Api.ModelsDto.Requests.Algorithms;
 
 namespace Heureka_Metaheuristic_System_Backend_Api.Database.Operations.Algorithms
 {

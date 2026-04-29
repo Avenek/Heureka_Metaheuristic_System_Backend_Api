@@ -1,10 +1,10 @@
 ﻿using Heureka_Metaheuristic_System_Backend_Api.Database.Operations.Generic;
-using Heureka_Metaheuristic_System_Backend_Api.Database.QueryCollections.Algorithms;
 using Heureka_Metaheuristic_System_Backend_Api.Entities;
 using Heureka_Metaheuristic_System_Backend_Api.Extensions;
 using Heureka_Metaheuristic_System_Backend_Api.MappingProfiles;
 using Heureka_Metaheuristic_System_Backend_Api.ModelsDto.Responses.Algorithmss;
-using System.Data.Entity;
+using Microsoft.EntityFrameworkCore;
+using System.Linq.Expressions;
 
 namespace Heureka_Metaheuristic_System_Backend_Api.Database.Operations.Algorithms
 {
@@ -14,7 +14,7 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Database.Operations.Algorithm
         {
             var repositoryCollection = (RepositoryCollection)service.RepositoryCollection;
             var mapper = service.GetMappingService<DataDtoMappingService>().Mapper;
-            var algorithms = await service.GetEntitiesBy<Algorithm>(a => true, a => new Algorithm() { Id = a.Id, Name = a.Name, FileName = a.FileName, IsRemoveable = a.IsRemoveable }).ToListAsync();
+            var algorithms = await service.GetEntitiesBy<Algorithm>(a => true, GetAlgorithmDtoSelector()).ToListAsync();
 
             return mapper.Map<IEnumerable<AlgorithmDto>>(algorithms);
         }
@@ -23,12 +23,14 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Database.Operations.Algorithm
         {
             var repositoryCollection = (RepositoryCollection)service.RepositoryCollection;
             var mapper = service.GetMappingService<DataDtoMappingService>().Mapper;
-            var algorithm = await service.GetEntitiesBy<Algorithm>(a => a.Id == id, a => new Algorithm() { Id = a.Id, Name = a.Name, FileName = a.FileName, IsRemoveable = a.IsRemoveable })
+            var algorithm = await service.GetEntitiesBy<Algorithm>(a => a.Id == id, GetAlgorithmDtoSelector())
                 .SingleOrDefaultAsync();
 
             algorithm.ThrowIfNull($"Algorithm with id {id} not found.");
 
             return mapper.Map<AlgorithmDto>(algorithm);
         }
+
+        private static Expression<Func<Algorithm, Algorithm>> GetAlgorithmDtoSelector() => a => new Algorithm() { Id = a.Id, Name = a.Name, FileName = a.FileName, IsRemoveable = a.IsRemoveable };
     }
 }

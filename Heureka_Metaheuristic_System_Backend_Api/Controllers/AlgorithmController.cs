@@ -1,5 +1,5 @@
 ﻿using Heureka_Metaheuristic_System_Backend_Api.ModelsDto;
-using Heureka_Metaheuristic_System_Backend_Api.ModelsDto.Requests;
+using Heureka_Metaheuristic_System_Backend_Api.ModelsDto.Requests.Algorithms;
 using Heureka_Metaheuristic_System_Backend_Api.ModelsDto.Responses.Algorithmss;
 using Heureka_Metaheuristic_System_Backend_Api.Services;
 using Microsoft.AspNetCore.Authorization;

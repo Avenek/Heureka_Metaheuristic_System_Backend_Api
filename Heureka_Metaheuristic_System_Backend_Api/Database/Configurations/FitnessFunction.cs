@@ -42,10 +42,10 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Database.Configurations
                 .HasColumnName("dimension")
                 .HasColumnType("tinyint(4) unsigned");
 
-            builder.Property(e => e.Domain)
+            builder.Property(e => e.DomainPerVariable)
                 .HasColumnName("domain")
                 .HasColumnType("text")
-                .HasDefaultValue("{}");
+                .HasDefaultValue("[]");
         }
     }
 }
