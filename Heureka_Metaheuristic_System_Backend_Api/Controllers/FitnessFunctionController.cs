@@ -20,5 +20,12 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Controllers
             var fitnessFunctions = await fitnessFunctionService.GetAll();
             return Ok(fitnessFunctions);
         }
+
+        [HttpGet("{id}")]
+        public async Task<ActionResult> GetById([FromRoute] uint id)
+        {
+            var fitnessFunction = await fitnessFunctionService.GetById(id);
+            return Ok(fitnessFunction);
+        }
     }
 }

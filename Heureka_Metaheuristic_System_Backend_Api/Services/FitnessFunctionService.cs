@@ -10,6 +10,7 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Services
     public interface IFitnessFunctionService
     {
         Task<IEnumerable<FitnessFunctionDto>> GetAll();
+        Task<FitnessFunctionDto> GetById(uint id);
     }
 
     public class FitnessFunctionService : IFitnessFunctionService
@@ -28,6 +29,12 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Services
             var executionService = executionServiceFactory();
             var fitnessFunctionDtos = await executionService.GetAllFitnessFunctions();
             return fitnessFunctionDtos;
+        }
+        public async Task<FitnessFunctionDto> GetById(uint id)
+        {
+            var executionService = executionServiceFactory();
+            var fitnessFunctionDto = await executionService.GetFitnessFunctionById(id);
+            return fitnessFunctionDto;
         }
     }
 }

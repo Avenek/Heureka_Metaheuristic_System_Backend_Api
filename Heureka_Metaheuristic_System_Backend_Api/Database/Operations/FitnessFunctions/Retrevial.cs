@@ -1,5 +1,6 @@
 ﻿using Heureka_Metaheuristic_System_Backend_Api.Database.Operations.Generic;
 using Heureka_Metaheuristic_System_Backend_Api.Entities;
+using Heureka_Metaheuristic_System_Backend_Api.Extensions;
 using Heureka_Metaheuristic_System_Backend_Api.MappingProfiles;
 using Heureka_Metaheuristic_System_Backend_Api.ModelsDto.Responses.FitnessFunctions;
 using Microsoft.EntityFrameworkCore;
@@ -16,6 +17,18 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Database.Operations.FitnessFu
             var fitnessFunctions = await service.GetEntitiesBy<FitnessFunction>(f => true, GetFitnessFunctionDtoSelector()).ToListAsync();
 
             return mapper.Map<IEnumerable<FitnessFunctionDto>>(fitnessFunctions);
+        }
+
+        public static async Task<FitnessFunctionDto> GetFitnessFunctionById(this DatabaseOperationExecutionService service, uint id)
+        {
+            var repositoryCollection = (RepositoryCollection)service.RepositoryCollection;
+            var mapper = service.GetMappingService<DataDtoMappingService>().Mapper;
+            var fitnessFunction = await service.GetEntitiesBy<FitnessFunction>(a => a.Id == id, GetFitnessFunctionDtoSelector())
+                .SingleOrDefaultAsync();
+
+            fitnessFunction.ThrowIfNull($"FitnessFunction with id {id} not found.");
+
+            return mapper.Map<FitnessFunctionDto>(fitnessFunction);
         }
 
         private static Expression<Func<FitnessFunction, FitnessFunction>> GetFitnessFunctionDtoSelector() => f => new FitnessFunction() { Id = f.Id, Name = f.Name, FileName = f.FileName, Dimension = f.Dimension, DomainPerVariable = f.DomainPerVariable, IsRemoveable = f.IsRemoveable };
