@@ -22,6 +22,7 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Services
         Task<FitnessFunctionDto> GetById(uint id);
         Task<FitnessFunctionDto> CreateFitnessFunction(CreateFitnessFunctionDto fitnessFunctionToCreateDto, IFormFile file);
         Task<FitnessFunctionDto> UpdateById(uint id, UpdateFitnessFunctionDto updatedFitnessFunctionDto);
+        Task DeleteById(uint id);
     }
 
     public class FitnessFunctionService : IFitnessFunctionService
@@ -80,6 +81,28 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Services
             }
         }
 
+        public async Task<FitnessFunctionDto> UpdateById(uint id, UpdateFitnessFunctionDto updatedFitnessFunctionDto)
+        {
+            var executionService = executionServiceFactory();
+            await ValidateFitnessFunctionName(executionService, updatedFitnessFunctionDto.Name);
+            await executionService.PerformUpdateFitnessFunctionOperations(updatedFitnessFunctionDto, id);
+            return await executionService.GetFitnessFunctionById(id);
+        }
+
+        public async Task DeleteById(uint id)
+        {
+            var executionService = executionServiceFactory();
+            var fitnessFunctionDto = await executionService.GetFitnessFunctionById(id);
+            if (!fitnessFunctionDto.IsRemoveable)
+            {
+                throw new BadRequestException("Cannot delete this fitness function.");
+            }
+
+            await executionService.PerformDeleteFitnessFunctionOperations(fitnessFunctionDto);
+            DeleteFitnessFunctionFile(fitnessFunctionDto.FileName);
+        }
+
+
         private void DeleteFitnessFunctionFile(string fileName)
         {
             File.Delete(GetFitnessFunctionFilePath(fileName));
@@ -116,14 +139,6 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Services
         private string GetFitnessFunctionFilePath(string fileName)
         {
             return Path.Combine(appSettings.DllPaths.FunctionsPath, fileName);
-        }
-
-        public async Task<FitnessFunctionDto> UpdateById(uint id, UpdateFitnessFunctionDto updatedFitnessFunctionDto)
-        {
-            var executionService = executionServiceFactory();
-            await ValidateFitnessFunctionName(executionService, updatedFitnessFunctionDto.Name);
-            await executionService.PerformUpdateFitnessFunctionOperations(updatedFitnessFunctionDto, id);
-            return await executionService.GetFitnessFunctionById(id);
         }
 
         private async Task ValidateFitnessFunctionName(DatabaseOperationExecutionService executionService, string fitnessFunctionName)

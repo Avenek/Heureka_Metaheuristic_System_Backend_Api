@@ -100,8 +100,8 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Services
                 throw new BadRequestException("Cannot delete this algorithm.");
             }
 
-            DeleteAlgorithmFile(algorithmDto.FileName);
             await executionService.PerformDeleteAlgorithmOperations(algorithmDto);
+            DeleteAlgorithmFile(algorithmDto.FileName);
         }
 
         private void DeleteAlgorithmFile(string fileName)

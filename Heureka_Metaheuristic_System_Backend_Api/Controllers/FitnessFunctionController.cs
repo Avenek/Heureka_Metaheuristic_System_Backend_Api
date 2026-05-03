@@ -42,5 +42,12 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Controllers
             var updatedFitnessFunction = await fitnessFunctionService.UpdateById(id, updatedFitnessFunctionDto);
             return Ok(updatedFitnessFunction);
         }
+
+        [HttpDelete("{id}")]
+        public async Task<ActionResult> DeleteById([FromRoute] uint id)
+        {
+            await fitnessFunctionService.DeleteById(id);
+            return NoContent();
+        }
     }
 }
