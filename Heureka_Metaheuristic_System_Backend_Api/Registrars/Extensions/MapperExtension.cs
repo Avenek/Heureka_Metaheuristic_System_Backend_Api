@@ -1,6 +1,4 @@
-﻿
-using Microsoft.Extensions.DependencyInjection;
-using System.Reflection;
+﻿using System.Reflection;
 
 namespace Heureka_Metaheuristic_System_Backend_Api.Registrars.Extensions
 {
@@ -8,7 +6,7 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Registrars.Extensions
     {
         public static void AddMappersFromAssembly(this IServiceCollection services, Assembly assembly)
         {
-            services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
+            services.AddAutoMapper(cfg => { }, assembly);
         }
     }
 }
