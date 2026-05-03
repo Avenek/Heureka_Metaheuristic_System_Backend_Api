@@ -2,10 +2,10 @@
 
 namespace Heureka_Metaheuristic_System_Backend_Api.ModelsDto.Requests.FitnessFunctions
 {
-    public class CreateFitnessFunctionDto : INameDto, IDomainPerVariableDto
+    public class UpdateFitnessFunctionDto : INameDto, IDomainPerVariableDto
     {
-        public required string Name { get; set; }
+        public string Name { get; set; } = null!;
         public uint? Dimension { get; set; }
-        public List<FitnessFunctionDomainDto> DomainPerVariable { get; set; } = new();
+        public List<FitnessFunctionDomainDto>? DomainPerVariable { get; set; }
     }
 }

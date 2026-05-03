@@ -1,11 +1,14 @@
 ﻿using Heureka_Metaheuristic_System_Backend_Api.Configuration;
 using Heureka_Metaheuristic_System_Backend_Api.Database;
+using Heureka_Metaheuristic_System_Backend_Api.Database.Operations.Algorithms;
 using Heureka_Metaheuristic_System_Backend_Api.Database.Operations.FitnessFunctions;
 using Heureka_Metaheuristic_System_Backend_Api.Database.Operations.Generic;
 using Heureka_Metaheuristic_System_Backend_Api.Entities;
 using Heureka_Metaheuristic_System_Backend_Api.Exceptions;
 using Heureka_Metaheuristic_System_Backend_Api.MappingProfiles;
+using Heureka_Metaheuristic_System_Backend_Api.ModelsDto.Requests.Algorithms;
 using Heureka_Metaheuristic_System_Backend_Api.ModelsDto.Requests.FitnessFunctions;
+using Heureka_Metaheuristic_System_Backend_Api.ModelsDto.Responses.Algorithmss;
 using Heureka_Metaheuristic_System_Backend_Api.ModelsDto.Responses.FitnessFunctions;
 using Heureka_Metaheuristic_System_Backend_Api.Reflection;
 using Heureka_Metaheuristic_System_Backend_Api.Reflection.ReflectionRequiredInterfaces;
@@ -18,6 +21,7 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Services
         Task<IEnumerable<FitnessFunctionDto>> GetAll();
         Task<FitnessFunctionDto> GetById(uint id);
         Task<FitnessFunctionDto> CreateFitnessFunction(CreateFitnessFunctionDto fitnessFunctionToCreateDto, IFormFile file);
+        Task<FitnessFunctionDto> UpdateById(uint id, UpdateFitnessFunctionDto updatedFitnessFunctionDto);
     }
 
     public class FitnessFunctionService : IFitnessFunctionService
@@ -113,8 +117,22 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Services
         {
             return Path.Combine(appSettings.DllPaths.FunctionsPath, fileName);
         }
+
+        public async Task<FitnessFunctionDto> UpdateById(uint id, UpdateFitnessFunctionDto updatedFitnessFunctionDto)
+        {
+            var executionService = executionServiceFactory();
+            await ValidateFitnessFunctionName(executionService, updatedFitnessFunctionDto.Name);
+            await executionService.PerformUpdateFitnessFunctionOperations(updatedFitnessFunctionDto, id);
+            return await executionService.GetFitnessFunctionById(id);
+        }
+
         private async Task ValidateFitnessFunctionName(DatabaseOperationExecutionService executionService, string fitnessFunctionName)
         {
+            if (string.IsNullOrWhiteSpace(fitnessFunctionName))
+            {
+                throw new BadRequestException("Name cannot be empty.");
+            }
+
             var existsFitnessFunctionWithSameName = await executionService.GetEntitiesBy<FitnessFunction>(fitnessFunction => fitnessFunction.Name == fitnessFunctionName, a => new FitnessFunction() { Id = a.Id }).AnyAsync();
             if (existsFitnessFunctionWithSameName)
             {

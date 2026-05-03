@@ -145,12 +145,18 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Services
         public async Task<AlgorithmDto> UpdateById(uint id, UpdateAlgorithmDto updatedAlgorithmDto)
         {
             var executionService = executionServiceFactory();
+            await ValidateAlgorithmName(executionService, updatedAlgorithmDto.Name);
             await executionService.PerformUpdateAlgorithmOperations(updatedAlgorithmDto, id);
             return await executionService.GetAlgorithmById(id);
         }
 
         private async Task ValidateAlgorithmName(DatabaseOperationExecutionService executionService, string algorithmName)
         {
+            if (string.IsNullOrWhiteSpace(algorithmName))
+            {
+                throw new BadRequestException("Name cannot be empty.");
+            }
+
             var existsAlgorithmWithSameName = await executionService.GetEntitiesBy<Algorithm>(algorithm => algorithm.Name == algorithmName, a => new Algorithm() { Id = a.Id }).AnyAsync();
             if (existsAlgorithmWithSameName)
             {

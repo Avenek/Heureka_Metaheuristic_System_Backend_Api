@@ -35,5 +35,12 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Controllers
             var createdFitnessFunction = await fitnessFunctionService.CreateFitnessFunction(fitnessFunctionToCreate, file);
             return CreatedAtAction(nameof(GetById), new { id = createdFitnessFunction.Id }, createdFitnessFunction);
         }
+
+        [HttpPatch("{id}")]
+        public async Task<ActionResult> UpdateById([FromRoute] uint id, [FromBody] UpdateFitnessFunctionDto updatedFitnessFunctionDto)
+        {
+            var updatedFitnessFunction = await fitnessFunctionService.UpdateById(id, updatedFitnessFunctionDto);
+            return Ok(updatedFitnessFunction);
+        }
     }
 }

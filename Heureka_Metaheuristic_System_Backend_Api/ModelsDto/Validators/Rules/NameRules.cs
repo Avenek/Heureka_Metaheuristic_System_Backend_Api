@@ -1,7 +1,7 @@
 ﻿using FluentValidation;
 using Heureka_Metaheuristic_System_Backend_Api.ModelsDto.Abstraction;
 
-namespace Heureka_Metaheuristic_System_Backend_Api.ModelsDto.Validators
+namespace Heureka_Metaheuristic_System_Backend_Api.ModelsDto.Validators.Rules
 {
     public class NameRules : AbstractValidator<INameDto>
     {

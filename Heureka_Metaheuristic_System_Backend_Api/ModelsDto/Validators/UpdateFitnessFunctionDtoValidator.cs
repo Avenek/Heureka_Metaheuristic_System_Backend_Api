@@ -5,12 +5,11 @@ using Heureka_Metaheuristic_System_Backend_Api.ModelsDto.Validators.Rules;
 
 namespace Heureka_Metaheuristic_System_Backend_Api.ModelsDto.Validators
 {
-    public class CreateFitnessFunctionDtoValidator : AbstractValidator<CreateFitnessFunctionDto>
+    public class UpdateFitnessFunctionDtoValidator : AbstractValidator<UpdateFitnessFunctionDto>
     {
-        public CreateFitnessFunctionDtoValidator()
+        public UpdateFitnessFunctionDtoValidator()
         {
             Include(new NameRules());
-
             Include(new DomainPerVariableRule());
         }
     }
