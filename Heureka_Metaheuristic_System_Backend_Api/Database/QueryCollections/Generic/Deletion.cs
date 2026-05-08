@@ -13,6 +13,10 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Database.QueryCollections.Gen
             var context = repositoryCollection.Context;
             var entityRepository = repositoryCollection.Get<T>();
             var entity = entityRepository.GetById(id);
+            if(entity is null)
+            {
+                throw new NotFoundException($"Entity of type {typeof(T).Name} with id {id} not found.");
+            }
 
             context.Remove(entity);
 
