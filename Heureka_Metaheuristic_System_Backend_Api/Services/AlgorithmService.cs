@@ -27,11 +27,13 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Services
     {
         private readonly Func<DatabaseOperationExecutionService> executionServiceFactory;
         private readonly AppSettings appSettings;
+        private readonly DllFileLoader dllFileLoader;
 
-        public AlgorithmService(Func<DatabaseOperationExecutionService> executionServiceFactory, AppSettings appSettings)
+        public AlgorithmService(Func<DatabaseOperationExecutionService> executionServiceFactory, AppSettings appSettings, DllFileLoader dllFileLoader)
         {
             this.executionServiceFactory = executionServiceFactory;
             this.appSettings = appSettings;
+            this.dllFileLoader = dllFileLoader;
         }
 
         public async Task<IEnumerable<AlgorithmDto>> GetAll()
@@ -52,11 +54,11 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Services
         {
             using var executionService = executionServiceFactory();
             await ValidateAlgorithmName(executionService, algorithmToCreateDto.Name);
-            DllFileValidator.ValidateFile(file, GetAlgorithmFilePath(file.FileName));
+            DllFileValidator.ValidateFile(file, dllFileLoader.GetAlgorithmFilePath(file.FileName));
 
             try
             {
-                var optimizationType = GetOptimizationType(file);
+                var optimizationType = dllFileLoader.GetOptimizationType<IOptimizationAlgorithm>(file);
                 var instance = Activator.CreateInstance(optimizationType)!;
                 var algorithmAdapter = new ReflectionOptimizationAlgorithmAdapter(instance);
 
@@ -106,22 +108,7 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Services
 
         private void DeleteAlgorithmFile(string fileName)
         {
-            File.Delete(GetAlgorithmFilePath(fileName));
-        }
-
-        private Type GetOptimizationType(IFormFile file)
-        {
-            DllFileLoader fileLoader = new();
-            using var readStream = file.OpenReadStream();
-            var assembly = fileLoader.LoadFromStream(readStream);
-            var types = assembly.GetTypes();
-            var optimizationType = types.FirstOrDefault(type => type.GetInterfaces().Any(interfaceType => ReflectionValidator.ImplementsInterface(interfaceType, typeof(IOptimizationAlgorithm))));
-            if (optimizationType == null)
-            {
-                throw new BadRequestException("File does not implement the required interface.");
-            }
-
-            return optimizationType;
+            File.Delete(dllFileLoader.GetAlgorithmFilePath(fileName));
         }
 
         private async Task CreateAlgorithmFile(IFormFile file)
@@ -132,14 +119,9 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Services
                 Directory.CreateDirectory(algorithmsFilePath);
             }
 
-            string fullPath = GetAlgorithmFilePath(file.FileName);
+            string fullPath = dllFileLoader.GetAlgorithmFilePath(file.FileName);
             using var stream = new FileStream(fullPath, FileMode.Create);
             await file.CopyToAsync(stream);
-        }
-
-        private string GetAlgorithmFilePath(string fileName)
-        {
-            return Path.Combine(appSettings.DllPaths.AlgorithmsPath, fileName);
         }
 
         public async Task<AlgorithmDto> UpdateById(uint id, UpdateAlgorithmDto updatedAlgorithmDto)

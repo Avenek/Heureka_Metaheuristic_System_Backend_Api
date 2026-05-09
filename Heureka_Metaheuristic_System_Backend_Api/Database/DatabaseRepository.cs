@@ -58,9 +58,9 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Database
 
         public void Insert(object entity) => Insert(entity as TEntity);
 
-        public TEntity GetById(object? id)
+        public async Task<TEntity> GetById(object? id)
         {
-            var entity = DbSet.Find(id);
+            var entity = await DbSet.FindAsync(id);
             if(entity is null)
             {
                 throw new NotFoundException($"Entity of type {typeof(TEntity).Name} with id {id} not found.");

@@ -2,6 +2,6 @@
 {
     public interface IFitnessFunction
     {
-        double CalculateFitnesse(double[] position);
+        double Calculate(double[] position);
     }
 }

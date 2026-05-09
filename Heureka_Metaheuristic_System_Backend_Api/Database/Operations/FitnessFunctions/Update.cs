@@ -15,7 +15,7 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Database.Operations.FitnessFu
         {
             var repositoryCollection = (RepositoryCollection)service.RepositoryCollection;
             var mapper = service.GetMappingService<DataDtoMappingService>().Mapper;
-            var existingFitnessFunction = repositoryCollection.Get<FitnessFunction>().GetById(fitnessFunctionId);
+            var existingFitnessFunction = await repositoryCollection.Get<FitnessFunction>().GetById(fitnessFunctionId);
 
             var fitnessFunctionEntity = mapper.Map(updatedFitnessFunction, existingFitnessFunction);
             var result = await repositoryCollection.UpdateEntity(fitnessFunctionEntity);

@@ -11,7 +11,7 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Database.QueryCollections.Gen
         {
             var context = repositoryCollection.Context;
             var entityRepository = repositoryCollection.Get<T>();
-            var existingEntity = entityRepository.GetById(updatedEntity.Id);
+            var existingEntity = await entityRepository.GetById(updatedEntity.Id);
             if (existingEntity is null)
             {
                 return false;

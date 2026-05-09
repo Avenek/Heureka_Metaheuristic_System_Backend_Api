@@ -15,7 +15,7 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Database.Operations.Algorithm
         {
             var repositoryCollection = (RepositoryCollection)service.RepositoryCollection;
             var mapper = service.GetMappingService<DataDtoMappingService>().Mapper;
-            var existingAlgorithm = repositoryCollection.Get<Algorithm>().GetById(algorithmId);
+            var existingAlgorithm = await repositoryCollection.Get<Algorithm>().GetById(algorithmId);
 
             var algorithmEntity = mapper.Map(updatedAlgorithm, existingAlgorithm);
             var result = await repositoryCollection.UpdateEntity(algorithmEntity);

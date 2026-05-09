@@ -1,4 +1,5 @@
-﻿using Heureka_Metaheuristic_System_Backend_Api.Services;
+﻿using Heureka_Metaheuristic_System_Backend_Api.ModelsDto.Requests.Sessions;
+using Heureka_Metaheuristic_System_Backend_Api.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Heureka_Metaheuristic_System_Backend_Api.Controllers
@@ -26,6 +27,13 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Controllers
         {
             await sessionService.DeleteById(id);
             return NoContent();
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> CreateSession([FromBody] CreateSessionDto createSessionDto, CancellationToken cancellationToken)
+        {
+            await sessionService.CreateSession(createSessionDto, cancellationToken);
+            return Ok();
         }
     }
 }

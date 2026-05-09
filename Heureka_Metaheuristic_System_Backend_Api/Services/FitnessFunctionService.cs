@@ -29,11 +29,13 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Services
     {
         private readonly Func<DatabaseOperationExecutionService> executionServiceFactory;
         private readonly AppSettings appSettings;
+        private readonly DllFileLoader dllFileLoader;
 
-        public FitnessFunctionService(Func<DatabaseOperationExecutionService> executionServiceFactory, AppSettings appSettings)
+        public FitnessFunctionService(Func<DatabaseOperationExecutionService> executionServiceFactory, AppSettings appSettings, DllFileLoader dllFileLoader)
         {
             this.executionServiceFactory = executionServiceFactory;
             this.appSettings = appSettings;
+            this.dllFileLoader = dllFileLoader;
         }
 
         public async Task<IEnumerable<FitnessFunctionDto>> GetAll()
@@ -53,11 +55,11 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Services
         {
             using var executionService = executionServiceFactory();
             await ValidateFitnessFunctionName(executionService, fitnessFunctionToCreateDto.Name);
-            DllFileValidator.ValidateFile(file, GetFitnessFunctionFilePath(file.FileName));
+            DllFileValidator.ValidateFile(file, dllFileLoader.GetFitnessFunctionFilePath(file.FileName));
 
             try
             {
-                var optimizationType = GetOptimizationType(file);
+                var optimizationType = dllFileLoader.GetOptimizationType<IFitnessFunction>(file);
                 var mapper = executionService.GetMappingService<DataDtoMappingService>().Mapper;
                 var fitnessFunction = mapper.Map<FitnessFunction>(fitnessFunctionToCreateDto);
 
@@ -105,22 +107,7 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Services
 
         private void DeleteFitnessFunctionFile(string fileName)
         {
-            File.Delete(GetFitnessFunctionFilePath(fileName));
-        }
-
-        private Type GetOptimizationType(IFormFile file)
-        {
-            DllFileLoader fileLoader = new();
-            using var readStream = file.OpenReadStream();
-            var assembly = fileLoader.LoadFromStream(readStream);
-            var types = assembly.GetTypes();
-            var optimizationType = types.FirstOrDefault(type => type.GetInterfaces().Any(interfaceType => ReflectionValidator.ImplementsInterface(interfaceType, typeof(IFitnessFunction))));
-            if (optimizationType == null)
-            {
-                throw new BadRequestException("File does not implement the required interface.");
-            }
-
-            return optimizationType;
+            File.Delete(dllFileLoader.GetFitnessFunctionFilePath(fileName));
         }
 
         private async Task CreateFitnessFunctionFile(IFormFile file)
@@ -131,14 +118,9 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Services
                 Directory.CreateDirectory(fitnessFunctionsFilePath);
             }
 
-            string fullPath = GetFitnessFunctionFilePath(file.FileName);
+            string fullPath = dllFileLoader.GetFitnessFunctionFilePath(file.FileName);
             using var stream = new FileStream(fullPath, FileMode.Create);
             await file.CopyToAsync(stream);
-        }
-
-        private string GetFitnessFunctionFilePath(string fileName)
-        {
-            return Path.Combine(appSettings.DllPaths.FunctionsPath, fileName);
         }
 
         private async Task ValidateFitnessFunctionName(DatabaseOperationExecutionService executionService, string fitnessFunctionName)
