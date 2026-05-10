@@ -64,7 +64,7 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Services
                 var fitnessFunction = mapper.Map<FitnessFunction>(fitnessFunctionToCreateDto);
 
                 fitnessFunction.FileName = file.FileName;
-                fitnessFunction.ClassName = optimizationType.Name;
+                fitnessFunction.ClassName = optimizationType.FullName;
                 fitnessFunction.IsRemoveable = true;
 
                 await CreateFitnessFunctionFile(file);

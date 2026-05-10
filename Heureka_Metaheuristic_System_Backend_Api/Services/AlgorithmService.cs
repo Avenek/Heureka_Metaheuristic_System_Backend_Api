@@ -66,7 +66,7 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Services
                 {
                     Name = algorithmToCreateDto.Name,
                     FileName = file.FileName,
-                    ClassName = optimizationType.Name,
+                    ClassName = optimizationType.FullName,
                     IsRemoveable = true,
                     Parameters = algorithmAdapter.ParamsInfo.Select(paramInfo => new AlgorithmParameter()
                     {

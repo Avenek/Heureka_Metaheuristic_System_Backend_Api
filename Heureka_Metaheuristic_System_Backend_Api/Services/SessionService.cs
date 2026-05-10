@@ -1,17 +1,18 @@
-﻿using Heureka_Metaheuristic_System_Backend_Api.Configuration;
-using Heureka_Metaheuristic_System_Backend_Api.Database;
+﻿using Heureka_Metaheuristic_System_Backend_Api.Database;
 using Heureka_Metaheuristic_System_Backend_Api.Database.Operations.Algorithms;
 using Heureka_Metaheuristic_System_Backend_Api.Database.Operations.FitnessFunctions;
 using Heureka_Metaheuristic_System_Backend_Api.Database.Operations.Sessions;
+using Heureka_Metaheuristic_System_Backend_Api.Database.Operations.SessionTests;
 using Heureka_Metaheuristic_System_Backend_Api.DataClasses;
 using Heureka_Metaheuristic_System_Backend_Api.Entities;
 using Heureka_Metaheuristic_System_Backend_Api.Enums;
 using Heureka_Metaheuristic_System_Backend_Api.Exceptions;
+using Heureka_Metaheuristic_System_Backend_Api.MappingProfiles;
+using Heureka_Metaheuristic_System_Backend_Api.ModelsDto.Requests.Algorithms;
 using Heureka_Metaheuristic_System_Backend_Api.ModelsDto.Requests.Sessions;
 using Heureka_Metaheuristic_System_Backend_Api.ModelsDto.Responses.Sessions;
 using Heureka_Metaheuristic_System_Backend_Api.Reflection;
-using Heureka_Metaheuristic_System_Backend_Api.Reflection.ReflectionRequiredInterfaces;
-using NLog.LayoutRenderers.Wrappers;
+using System.Collections.Concurrent;
 
 namespace Heureka_Metaheuristic_System_Backend_Api.Services
 {
@@ -25,13 +26,11 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Services
     public class SessionService : ISessionService
     {
         private readonly Func<DatabaseOperationExecutionService> executionServiceFactory;
-        private readonly AppSettings appSettings;
         private readonly DllFileLoader dllFileLoader;
 
-        public SessionService(Func<DatabaseOperationExecutionService> executionServiceFactory, AppSettings appSettings, DllFileLoader dllFileLoader)
+        public SessionService(Func<DatabaseOperationExecutionService> executionServiceFactory, DllFileLoader dllFileLoader)
         {
             this.executionServiceFactory = executionServiceFactory;
-            this.appSettings = appSettings;
             this.dllFileLoader = dllFileLoader;
         }
 
@@ -50,80 +49,63 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Services
 
         public async Task<IEnumerable<SessionTestResultsDto>> CreateSession(CreateSessionDto createSessionDto, CancellationToken cancellationToken)
         {
-            if (createSessionDto.AlgorithmIds.Length == 1)
-            {
-                return await PerformAlgorithmTest(createSessionDto, cancellationToken);
-            }
-            else if (createSessionDto.FitnessFunctionIds.Length == 1)
-            {
-                return await PerformFitnessFunctionTest(createSessionDto, cancellationToken);
-            }
-            else
-            {
-                throw new BadRequestException("You must provide exactly one algorithm id or one fitness function id.");
-            }
-        }
-
-        private async Task<IEnumerable<SessionTestResultsDto>> PerformAlgorithmTest(CreateSessionDto createSessionDto, CancellationToken cancellationToken)
-        {
-            var testedAlgorithmId = createSessionDto.AlgorithmIds[0];
             var executionService = executionServiceFactory();
-            var algorithm = await executionService.GetAlgorithmWithParametersById(testedAlgorithmId);
-            var fitnessFunctions = await executionService.GetFitnessFunctionByIds(createSessionDto.FitnessFunctionIds);
-
-            if (fitnessFunctions.Count != createSessionDto.FitnessFunctionIds.Length)
-            {
-                throw new NotFoundException("One or more fitness functions with the provided ids were not found.");
-            }
-
-            var algorithmType = dllFileLoader.GetOptimizationType<IOptimizationAlgorithm>(dllFileLoader.GetAlgorithmFilePath(algorithm.FileName));
-            var functionTypes = fitnessFunctions
-                .Select(ff => new KeyValuePair<uint, Type>(ff.Id, dllFileLoader.GetOptimizationType<IFitnessFunction>(dllFileLoader.GetFitnessFunctionFilePath(ff.FileName))))
-                .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+            var mapper = executionService.GetMappingService<DataDtoMappingService>().Mapper;
 
             await CancelIfAnySessionIsRunning(executionService);
+
             var createdSession = await CreateSessionInDatabase(executionService);
-            var invokeSessionTestData = new SessionTestData()
-            {
-                SessionId = createdSession.Id,
-                AlgorithmTypes = new() { { testedAlgorithmId, algorithmType } },
-                FitnessFunctionsTypes = functionTypes,
-                NumberOfRunsPerParameterSet = createSessionDto.NumberOfRunsPerParameterSet,
-                CancellationToken = cancellationToken
-            };
-            var results = await PrepareDataAndInvokeTests(executionService, invokeSessionTestData);
-            return results;
-        }
 
-        private async Task<IEnumerable<SessionTestResultsDto>> PerformFitnessFunctionTest(CreateSessionDto createSessionDto, CancellationToken cancellationToken)
-        {
-            var testedFitnessFunctionId = createSessionDto.FitnessFunctionIds[0];
-            var executionService = executionServiceFactory();
-            var fitnessFunction = await executionService.GetFitnessFunctionById(testedFitnessFunctionId);
-            var algorithms = await executionService.GetAlgorithmWithParametersByIds(createSessionDto.AlgorithmIds);
+            var algorithmIds = createSessionDto.AlgorithmIds;
+            var fitnessFunctionIds = createSessionDto.FitnessFunctionIds;
 
-            if (algorithms.Count != createSessionDto.AlgorithmIds.Length)
+            if (algorithmIds.Length == 0 || fitnessFunctionIds.Length == 0)
             {
-                throw new NotFoundException("One or more algorithms with the provided ids were not found.");
+                throw new BadRequestException("You must provide at least one algorithm and one fitness function.");
             }
 
-            var fitnessFunctionType = dllFileLoader.GetOptimizationType<IFitnessFunction>(dllFileLoader.GetFitnessFunctionFilePath(fitnessFunction.FileName));
-            var algorithmTypes = algorithms
-                .Select(a => new KeyValuePair<uint, Type>(a.Id, dllFileLoader.GetOptimizationType<IOptimizationAlgorithm>(dllFileLoader.GetAlgorithmFilePath(a.FileName))))
-                .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+            var algorithms = await executionService.GetAlgorithmWithParametersByIds(algorithmIds);
 
-            await CancelIfAnySessionIsRunning(executionService);
-            var createdSession = await CreateSessionInDatabase(executionService);
-            var invokeSessionTestData = new SessionTestData()
+            var fitnessFunctions = await executionService.GetFitnessFunctionForTestByIds(fitnessFunctionIds);
+
+            if (algorithms.Count != algorithmIds.Length)
+            {
+                throw new NotFoundException("One or more algorithms were not found.");
+            }
+               
+            if (fitnessFunctions.Count != fitnessFunctionIds.Length)
+            {
+                throw new NotFoundException("One or more fitness functions were not found.");
+            }
+
+            var algorithmInstances = algorithms.ToDictionary(
+                a => a.Id,
+                a => dllFileLoader.CreateInstance(
+                    dllFileLoader.GetAlgorithmFilePath(a.FileName),
+                    a.ClassName));
+
+            var fitnessFunctionInstances = fitnessFunctions.ToDictionary(
+                f => f.Id,
+                f => dllFileLoader.CreateInstance(
+                    dllFileLoader.GetFitnessFunctionFilePath(f.FileName),
+                    f.ClassName));
+
+            var algorithmParams = algorithms.ToDictionary(
+                a => a.Id,
+                a => mapper.Map<List<AlgorithmParameterDto>>(a.Parameters));
+
+            var sessionTestData = new SessionTestsData
             {
                 SessionId = createdSession.Id,
-                AlgorithmTypes = algorithmTypes,
-                FitnessFunctionsTypes = new() { { testedFitnessFunctionId, fitnessFunctionType } },
+                AlgorithmInstances = algorithmInstances,
+                FitnessFunctionsInstances = fitnessFunctionInstances,
                 NumberOfRunsPerParameterSet = createSessionDto.NumberOfRunsPerParameterSet,
-                CancellationToken = cancellationToken
+                CancellationToken = cancellationToken,
+                AlgorithmParametersConfig = algorithmParams,
+                OverrideAlgorithmParametersConfig = createSessionDto.OverrideParametersConfig
             };
-            var results = await PrepareDataAndInvokeTests(executionService, invokeSessionTestData);
-            return results;
+
+            return await PrepareAndRunTestCombinations(executionService, sessionTestData);
         }
 
         private static async Task CancelIfAnySessionIsRunning(DatabaseOperationExecutionService executionService)
@@ -146,19 +128,105 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Services
             return sessionToCreate;
         }
 
-        private async Task<IEnumerable<SessionTestResultsDto>> PrepareDataAndInvokeTests(DatabaseOperationExecutionService executionService, SessionTestData invokeSessionTestData)
+        private async Task<IEnumerable<SessionTestResultsDto>> PrepareAndRunTestCombinations(DatabaseOperationExecutionService executionService, SessionTestsData invokeSessionTestData)
         {
-            var sessionTestResultsDtos = new List<SessionTestResultsDto>();
-            //TODO: Implement
-            throw new NotImplementedException();
+            ConcurrentBag<SessionTestResultsDto> results = new();
+
+            int availableProcessors = Environment.ProcessorCount;
+            int maxParallelTasks = availableProcessors > 3 ? availableProcessors - 2 : 1;
+            var sessionTestCombinations = CreateSessionTestCombinations(invokeSessionTestData);
+
+            await CreateSessionTestsInDatabase(executionService, sessionTestCombinations);
+
+            int isFailureHandled = 0;
+
+            await Parallel.ForEachAsync(
+                sessionTestCombinations,
+                new ParallelOptions
+                {
+                    MaxDegreeOfParallelism = maxParallelTasks,
+                    CancellationToken = invokeSessionTestData.CancellationToken
+                },
+                async (combo, ct) =>
+                {
+                    try
+                    {
+                        results.Add(await InvokeTest(combo, ct));
+                    }
+                    catch
+                    {
+                        if (Interlocked.Exchange(ref isFailureHandled, 1) == 0)
+                        {
+                            await UpdateSessionStateInDatabase(executionService, invokeSessionTestData.SessionId, ESessionState.Suspended);
+                        }
+                        throw;
+                    }
+                });
 
             await UpdateSessionStateInDatabase(executionService, invokeSessionTestData.SessionId, ESessionState.Finished);
-            return sessionTestResultsDtos;
+            return results.ToList();
+        }
+
+        private async Task<SessionTestResultsDto> InvokeTest(SingleSessionTestData testData, CancellationToken ct)
+        {
+            throw new NotImplementedException();
         }
 
         private async Task UpdateSessionStateInDatabase(DatabaseOperationExecutionService executionService, uint sessionId, ESessionState newState)
         {
             await executionService.PerformUpdateSessionStateOperations(sessionId, newState);
+        }
+
+        private List<AlgorithmParameterDto> MergeOverrideParameters(
+            List<AlgorithmParameterDto> parameters,
+            List<AlgorithmParameterDto> overrideParameters)
+        {
+            var overrideDictionary = overrideParameters.ToDictionary(
+                p => p.Id,
+                p => p);
+
+            return parameters
+                .Select(parameter =>
+                    overrideDictionary.TryGetValue(
+                        parameter.Id,
+                        out var overriddenParameter)
+                            ? overriddenParameter
+                            : parameter)
+                .ToList();
+        }
+
+        private List<SingleSessionTestData> CreateSessionTestCombinations(SessionTestsData invokeSessionTestData)
+        {
+            return invokeSessionTestData.FitnessFunctionsInstances.Keys
+                        .SelectMany(
+                            functionIds => invokeSessionTestData.AlgorithmInstances.Keys,
+                            (functionId, algorithmId) => new SingleSessionTestData
+                            {
+                                SessionId = invokeSessionTestData.SessionId,
+                                AlgorithmId = algorithmId,
+                                FitnessFunctionId = functionId,
+                                AlgorithmInstance = invokeSessionTestData.AlgorithmInstances[algorithmId],
+                                FitnessFunctionInstance = invokeSessionTestData.FitnessFunctionsInstances[functionId],
+                                NumberOfRunsPerParameterSet = invokeSessionTestData.NumberOfRunsPerParameterSet,
+                                AlgorithmParametersConfig = invokeSessionTestData.OverrideAlgorithmParametersConfig.ContainsKey(algorithmId) ?
+                                    MergeOverrideParameters(invokeSessionTestData.AlgorithmParametersConfig[algorithmId], invokeSessionTestData.OverrideAlgorithmParametersConfig[algorithmId]) :
+                                invokeSessionTestData.AlgorithmParametersConfig[algorithmId]
+                            }).ToList();
+        }
+
+        private async Task CreateSessionTestsInDatabase(DatabaseOperationExecutionService executionService, List<SingleSessionTestData> sessionTestCombinations)
+        {
+            var sessionTestEntities = sessionTestCombinations.Select(c => new SessionTest
+            {
+                SessionId = c.SessionId,
+                AlgorithmId = c.AlgorithmId,
+                FitnessFunctionId = c.FitnessFunctionId,
+                TestInvokePerParameters = c.NumberOfRunsPerParameterSet,
+                ParametersConfig = System.Text.Json.JsonSerializer.Serialize(c.AlgorithmParametersConfig),
+                Progress = 0
+            }).ToList();
+
+            await executionService.PerformCreateSessionTestsOperations(sessionTestEntities);
         }
     }
 }

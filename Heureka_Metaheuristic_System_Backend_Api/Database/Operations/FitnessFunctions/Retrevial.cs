@@ -3,6 +3,7 @@ using Heureka_Metaheuristic_System_Backend_Api.Entities;
 using Heureka_Metaheuristic_System_Backend_Api.Extensions;
 using Heureka_Metaheuristic_System_Backend_Api.MappingProfiles;
 using Heureka_Metaheuristic_System_Backend_Api.ModelsDto.Responses.FitnessFunctions;
+using Heureka_Metaheuristic_System_Backend_Api.Reflection.ReflectionRequiredInterfaces;
 using Microsoft.EntityFrameworkCore;
 using System.Data.Entity.Core.Mapping;
 using System.Linq.Expressions;
@@ -22,17 +23,27 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Database.Operations.FitnessFu
 
         public static async Task<FitnessFunctionDto> GetFitnessFunctionById(this DatabaseOperationExecutionService service, uint id)
         {
-            var fitnessFunctions = await service.GetFitnessFunctionByIds([id]);
-            return fitnessFunctions.SingleOrDefault().ThrowIfNull($"Fitness function with id {id} was not found.");
+            var repositoryCollection = (RepositoryCollection)service.RepositoryCollection;
+            var mapper = service.GetMappingService<DataDtoMappingService>().Mapper;
+            var fitnessFunction = await service.GetEntitiesBy<FitnessFunction>(a => a.Id == id, GetFitnessFunctionDtoSelector()).SingleOrDefaultAsync();
+            fitnessFunction.ThrowIfNull($"Fitness function with id {id} was not found.");
+
+            return mapper.Map<FitnessFunctionDto>(fitnessFunction);
         }
 
-        public static async Task<List<FitnessFunctionDto>> GetFitnessFunctionByIds(this DatabaseOperationExecutionService service, IEnumerable<uint> ids)
+        public static async Task<FitnessFunction> GetFitnessFunctionForTestById(this DatabaseOperationExecutionService service, uint id)
+        {
+            var fitnessFunction = (await service.GetFitnessFunctionForTestByIds([id])).SingleOrDefault();
+            return fitnessFunction.ThrowIfNull($"Fitness function with id {id} was not found.");
+        }
+        public static async Task<List<FitnessFunction>> GetFitnessFunctionForTestByIds(this DatabaseOperationExecutionService service, IEnumerable<uint> ids)
         {
             var repositoryCollection = (RepositoryCollection)service.RepositoryCollection;
             var mapper = service.GetMappingService<DataDtoMappingService>().Mapper;
-            var fitnessFunction = await service.GetEntitiesBy<FitnessFunction>(a => ids.Contains(a.Id), GetFitnessFunctionDtoSelector()).ToListAsync();
+            var fitnessFunction = await service.GetEntitiesBy<FitnessFunction>(a => ids.Contains(a.Id),
+                f => new FitnessFunction() { Id = f.Id, Name = f.Name, FileName = f.FileName, ClassName = f.ClassName, Dimension = f.Dimension, DomainPerVariable = f.DomainPerVariable }).ToListAsync();
 
-            return mapper.Map<List<FitnessFunctionDto>>(fitnessFunction);
+            return mapper.Map<List<FitnessFunction>>(fitnessFunction);
         }
 
         private static Expression<Func<FitnessFunction, FitnessFunction>> GetFitnessFunctionDtoSelector() => f => new FitnessFunction() { Id = f.Id, Name = f.Name, FileName = f.FileName, Dimension = f.Dimension, DomainPerVariable = f.DomainPerVariable, IsRemoveable = f.IsRemoveable };
