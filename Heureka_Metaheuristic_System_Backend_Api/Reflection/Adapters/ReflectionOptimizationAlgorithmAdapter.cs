@@ -5,28 +5,12 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Reflection.Adapters
 {
     public class ReflectionOptimizationAlgorithmAdapter : AbstractReflectionAdapter, IOptimizationAlgorithm
     {
-        private readonly MethodInfo _solveMethod;
+        private readonly MethodInfo solveMethod;
 
         public ReflectionOptimizationAlgorithmAdapter(object instance) : base(instance)
         {
-            _solveMethod = Type.GetMethod("Solve")
-                ?? throw new Exception("Solve method not found");
-        }
-
-        private T GetProperty<T>(string name)
-        {
-            var prop = Type.GetProperty(name)
-                ?? throw new Exception($"Property {name} not found");
-
-            return (T)prop.GetValue(Instance)!;
-        }
-
-        private void SetProperty<T>(string name, T value)
-        {
-            var prop = Type.GetProperty(name)
-                ?? throw new Exception($"Property {name} not found");
-
-            prop.SetValue(Instance, value);
+            solveMethod = Type.GetMethod(nameof(Solve))
+                ?? throw new Exception($"{nameof(Solve)} method not found");
         }
 
         public string Name
@@ -40,7 +24,7 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Reflection.Adapters
             get
             {
                 var prop = Type.GetProperty(nameof(ParamsInfo))
-                    ?? throw new Exception("ParamsInfo property not found");
+                    ?? throw new Exception($"{nameof(ParamsInfo)} property not found");
 
                 var array = (Array)prop.GetValue(Instance)!;
 
@@ -51,7 +35,7 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Reflection.Adapters
             }
             set
             {
-                throw new NotSupportedException("Setting ParamsInfo not supported for external plugins.");
+                throw new NotSupportedException($"Setting {nameof(ParamsInfo)} not supported for external plugins.");
             }
         }
 
@@ -67,20 +51,20 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Reflection.Adapters
             set => SetProperty(nameof(FBest), value);
         }
 
-        public int NumberOfEvaluationFitnessFunction
+        public uint NumberOfEvaluationFitnessFunction
         {
-            get => GetProperty<int>(nameof(NumberOfEvaluationFitnessFunction));
+            get => GetProperty<uint>(nameof(NumberOfEvaluationFitnessFunction));
             set => SetProperty(nameof(NumberOfEvaluationFitnessFunction), value);
         }
 
-        public void Solve(IFitnessFunction function, double[,] domain, double[] parameters, bool resume)
+        public void Solve(IFitnessFunction function, uint dimension, double[,] domain, double[] parameters)
         {
-            _solveMethod.Invoke(Instance, new object[]
+            solveMethod.Invoke(Instance, new object[]
             {
-            function,
-            domain,
-            parameters,
-            resume
+                function,
+                dimension,
+                domain,
+                parameters
             });
         }
     }

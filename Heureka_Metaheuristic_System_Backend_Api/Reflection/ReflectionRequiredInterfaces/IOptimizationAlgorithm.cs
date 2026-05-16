@@ -4,12 +4,12 @@
     {
         string Name { get; set; }
 
-        void Solve(IFitnessFunction function, double[,] domain, double[] parameters, bool resume);
+        void Solve(IFitnessFunction function, uint dimension, double[,] domain, double[] parameters);
 
         IParamInfo[] ParamsInfo { get; set; }
 
         double[] XBest { get; set; }
         double FBest { get; set; }
-        int NumberOfEvaluationFitnessFunction { get; set; }
+        uint NumberOfEvaluationFitnessFunction { get; set; }
     }
 }

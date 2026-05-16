@@ -13,7 +13,7 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Entities
         public uint TestInvokePerParameters { get; set; }
 
         public string ParametersConfig { get; set; } = "{}";
-        public float Progress { get; set; }
+        public double Progress { get; set; }
 
         public Session Session { get; set; } = null!;
         public Algorithm Algorithm { get; set; } = null!;

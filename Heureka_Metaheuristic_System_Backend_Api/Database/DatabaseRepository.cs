@@ -7,8 +7,7 @@ using System.Linq.Expressions;
 
 namespace Heureka_Metaheuristic_System_Backend_Api.Database
 {
-    public class DatabaseRepository<TEntity> :
-    IDatabaseRepository<TEntity> where TEntity : class, IEntity
+    public class DatabaseRepository<TEntity> : IDatabaseRepository<TEntity> where TEntity : class, IEntity
     {
         public DatabaseRepository(DatabaseContext context)
         {
@@ -54,7 +53,7 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Database
                 includeProperties
             );
 
-        object? IRepository.GetById(object? id) => GetById(id);
+        async Task<object?> IRepository.GetById(object? id) => await GetById(id);
 
         public void Insert(object entity) => Insert(entity as TEntity);
 

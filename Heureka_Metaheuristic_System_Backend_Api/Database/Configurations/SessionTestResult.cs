@@ -35,6 +35,10 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Database.Configurations
                 .HasColumnName("fitness_function_evaluations")
                 .HasColumnType("int(10) unsigned");
 
+            builder.Property(e => e.Dimension)
+                .HasColumnName("dimension")
+                .HasColumnType("int(10) unsigned");
+
             builder.Property(e => e.ParametersGrid)
                 .HasColumnName("parameters_grid")
                 .HasColumnType("text")

@@ -43,7 +43,7 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Database.Configurations
 
             builder.Property(e => e.Progress)
                 .HasColumnName("progress")
-                .HasColumnType("float unsigned");
+                .HasColumnType("double unsigned");
 
             builder.HasOne(d => d.Algorithm)
                 .WithMany(p => p.SessionTests)

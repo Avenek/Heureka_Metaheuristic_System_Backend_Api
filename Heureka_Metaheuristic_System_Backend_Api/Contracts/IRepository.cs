@@ -12,7 +12,7 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Contracts
             string includeProperties
         );
 
-        public object? GetById(object? id);
+        public Task<object?> GetById(object? id);
 
         public void Insert(object entity);
 

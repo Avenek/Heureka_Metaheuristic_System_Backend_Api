@@ -9,9 +9,10 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Entities
         public uint SessionTestId { get; set; }
 
         public string XBest { get; set; } = null!;
-        public float FBest { get; set; }
+        public double FBest { get; set; }
 
         public uint FitnessFunctionEvaluations { get; set; }
+        public uint Dimension { get; set; }
 
         public string ParametersGrid { get; set; } = "{}";
 
