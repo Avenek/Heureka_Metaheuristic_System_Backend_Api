@@ -12,6 +12,7 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Registrars.Extensions
             services.AddScoped<ErrorHandlingMiddleware>();
             services.AddSingleton<IMappingService, DataDtoMappingService>();
             services.AddSingleton<DllFileLoader>();
+            services.AddSingleton<SessionTestRunner>();
             services.AddHttpContextAccessor();
         }
     }
