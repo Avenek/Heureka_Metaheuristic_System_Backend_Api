@@ -8,7 +8,6 @@ using Heureka_Metaheuristic_System_Backend_Api.DataClasses;
 using Heureka_Metaheuristic_System_Backend_Api.Entities;
 using Heureka_Metaheuristic_System_Backend_Api.Enums;
 using Heureka_Metaheuristic_System_Backend_Api.Exceptions;
-using Heureka_Metaheuristic_System_Backend_Api.Helpers;
 using Heureka_Metaheuristic_System_Backend_Api.MappingProfiles;
 using Heureka_Metaheuristic_System_Backend_Api.ModelsDto;
 using Heureka_Metaheuristic_System_Backend_Api.ModelsDto.Requests.Algorithms;
@@ -33,23 +32,6 @@ public class SessionTestRunner
         this.dllFileLoader = dllFileLoader;
     }
 
-    public async Task RunAsync(CreateSessionDto createSessionDto, CancellationToken ct)
-    {
-        var executionService = executionServiceFactory();
-
-        await EnsureNoRunningSessions(executionService);
-
-        var session = await CreateSession(executionService);
-
-        var sessionTestData = await BuildSessionData(executionService, createSessionDto, ct);
-
-        var testCombinations = CreateSessionTestCombinations(sessionTestData, executionService, () => new NewTestRunner());
-
-        await CreateSessionTestsInDatabase(executionService, testCombinations);
-
-        await ExecuteAllTests(executionService, session.Id, testCombinations, ct);
-    }
-
     public async Task ResumeSessionAsync(uint sessionId, CancellationToken ct)
     {
         var executionService = executionServiceFactory();
@@ -69,7 +51,7 @@ public class SessionTestRunner
                 s => JsonSerializer.Deserialize<List<AlgorithmParameterDto>>(s.ParametersConfig) ?? new List<AlgorithmParameterDto>())
         };
 
-        var testCombinations = CreateSessionTestCombinations(sessionTestData, executionService, () => new ResumeTestRunner(executionService));
+        var testCombinations = CreateSessionTestCombinations(sessionTestData, executionService);
 
         await ExecuteAllTests(executionService, sessionId, testCombinations, ct);
     }
@@ -84,39 +66,7 @@ public class SessionTestRunner
         }
     }
 
-    private async Task<Session> CreateSession(DatabaseOperationExecutionService executionService)
-    {
-        var session = new Session
-        {
-            StateId = (uint)ESessionState.Running
-        };
-
-        await executionService.PerformCreateSessionOperations(session);
-        return session;
-    }
-
-    private async Task<SessionTestsData> BuildSessionData(DatabaseOperationExecutionService executionService, CreateSessionDto createSessionDto, CancellationToken ct)
-    {
-        var algorithms = await executionService.GetAlgorithmWithParametersByIds(createSessionDto.AlgorithmIds);
-        var fitnessFunctions = await executionService.GetFitnessFunctionForTestByIds(createSessionDto.FitnessFunctionIds);
-
-        if (algorithms.Count != createSessionDto.AlgorithmIds.Length)
-            throw new NotFoundException("One or more algorithms were not found.");
-
-        if (fitnessFunctions.Count != createSessionDto.FitnessFunctionIds.Length)
-            throw new NotFoundException("One or more fitness functions were not found.");
-
-        return new SessionTestsData
-        {
-            Algorithms = algorithms.ToDictionary(a => a.Id, a => a),
-            FitnessFunctions = fitnessFunctions.ToDictionary(f => f.Id, f => f),
-            NumberOfRunsPerParameterSet = createSessionDto.NumberOfRunsPerParameterSet,
-            CancellationToken = ct,
-            OverrideAlgorithmParametersConfig = createSessionDto.OverrideParametersConfig
-        };
-    }
-
-    private List<SingleSessionTestRunner> CreateSessionTestCombinations(SessionTestsData sessionData, DatabaseOperationExecutionService executionService, Func<SingleSessionTestRunner> runnerFactory)
+    public List<SingleSessionTestRunner> CreateSessionTestCombinations(SessionTestsData sessionData, DatabaseOperationExecutionService executionService)
     {
         var mapper = executionService
             .GetMappingService<DataDtoMappingService>()
@@ -148,16 +98,16 @@ public class SessionTestRunner
                     parameters = MergeOverrideParameters(parameters, overrideParams);
                 }
 
-                var runner = runnerFactory();
-                runner.SessionId = sessionData.SessionId;
-                runner.AlgorithmId = algorithm.Id;
-                runner.FitnessFunction = mapper.Map<FitnessFunctionDto>(fitness);
-                runner.AlgorithmInstance = algorithmInstance;
-                runner.FitnessFunctionInstance = fitnessInstance;
-                runner.NumberOfRunsPerParameterSet = sessionData.NumberOfRunsPerParameterSet;
-                runner.AlgorithmParametersConfig = parameters;
-
-                return runner;
+                return new SingleSessionTestRunner()
+                {
+                    SessionId = sessionData.SessionId,
+                    AlgorithmId = algorithm.Id,
+                    FitnessFunction = mapper.Map<FitnessFunctionDto>(fitness),
+                    AlgorithmInstance = algorithmInstance,
+                    FitnessFunctionInstance = fitnessInstance,
+                    NumberOfRunsPerParameterSet = sessionData.NumberOfRunsPerParameterSet,
+                    AlgorithmParametersConfig = parameters,
+                };
             }).ToList();
     }
 
@@ -166,29 +116,6 @@ public class SessionTestRunner
         var dict = overrides.ToDictionary(x => x.Id, x => x);
 
         return parameters.Select(p => dict.TryGetValue(p.Id, out var o) ? o : p).ToList();
-    }
-
-    private async Task CreateSessionTestsInDatabase(DatabaseOperationExecutionService executionService, List<SingleSessionTestRunner> tests)
-    {
-        var entities = tests.Select(t => new SessionTest
-        {
-            SessionId = t.SessionId,
-            AlgorithmId = t.AlgorithmId,
-            FitnessFunctionId = t.FitnessFunction.Id,
-            TestInvokePerParameters = t.NumberOfRunsPerParameterSet,
-            ParametersConfig = JsonSerializer.Serialize(t.AlgorithmParametersConfig),
-            Progress = 0
-        }).ToList();
-
-        await executionService.PerformCreateSessionTestsOperations(entities);
-
-        foreach (var t in tests)
-        {
-            t.TestId = entities.First(e =>
-                e.SessionId == t.SessionId &&
-                e.AlgorithmId == t.AlgorithmId &&
-                e.FitnessFunctionId == t.FitnessFunction.Id).Id;
-        }
     }
 
     private async Task ExecuteAllTests(DatabaseOperationExecutionService executionService, uint sessionId, List<SingleSessionTestRunner> tests, CancellationToken ct)
@@ -208,7 +135,7 @@ public class SessionTestRunner
             {
                 try
                 {
-                    test.PrepareInitializeParameters();
+                    await PrepareInitializeParameters(executionService,  test);
                     await InvokeTests(executionService, test, ct);
                 }
                 catch
@@ -222,6 +149,22 @@ public class SessionTestRunner
             });
 
         await UpdateSessionState(executionService, sessionId, ESessionState.Finished);
+    }
+
+    public async Task PrepareInitializeParameters(DatabaseOperationExecutionService executionService, SingleSessionTestRunner test)
+    {
+        var lastSessionTestResult = await executionService.GetLastSessionTestResultDataById(test.TestId);
+        if (lastSessionTestResult != null)
+        {
+            var parametersPerId = JsonSerializer.Deserialize<Dictionary<uint, double>>(lastSessionTestResult.ParametersGrid);
+            test.InitialParameters = parametersPerId.OrderBy(p => p.Key).Select(p => p.Value).ToArray();
+            test.InitialDimension = (int)lastSessionTestResult.Dimension;
+        }
+        else
+        {
+            test.InitialParameters = test.AlgorithmParametersConfig.Select(p => p.MinValue).ToArray();
+            test.InitialDimension = test.MinimalDimension;
+        }
     }
 
     private async Task InvokeTests(DatabaseOperationExecutionService executionService, SingleSessionTestRunner test, CancellationToken ct)

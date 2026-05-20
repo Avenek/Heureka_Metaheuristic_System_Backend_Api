@@ -30,10 +30,10 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> CreateSession([FromBody] CreateSessionDto createSessionDto, CancellationToken cancellationToken)
+        public async Task<IActionResult> CreateSession([FromBody] CreateSessionDto createSessionDto)
         {
-            await sessionService.CreateSession(createSessionDto, cancellationToken);
-            return Ok();
+            var createdSession = await sessionService.CreateSession(createSessionDto);
+            return CreatedAtAction(null, new { id = createdSession.Id }, createdSession);
         }
 
         [HttpPost("{id}/resume")]
