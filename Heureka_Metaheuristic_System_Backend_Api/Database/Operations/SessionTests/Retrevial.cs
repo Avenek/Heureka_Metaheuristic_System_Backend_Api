@@ -1,6 +1,7 @@
 ﻿using Heureka_Metaheuristic_System_Backend_Api.Contracts;
 using Heureka_Metaheuristic_System_Backend_Api.Database.Operations.Generic;
 using Heureka_Metaheuristic_System_Backend_Api.Entities;
+using Heureka_Metaheuristic_System_Backend_Api.Extensions;
 using Heureka_Metaheuristic_System_Backend_Api.MappingProfiles;
 using Microsoft.EntityFrameworkCore;
 
@@ -38,6 +39,19 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Database.Operations.SessionTe
             }).ToListAsync();
 
             return sessionTests;
+        }
+        public static async Task<List<SessionTest>> GetSessionTestsProgressesBySessionId(this DatabaseOperationExecutionService service, uint sessionId)
+        {
+            var repositoryCollection = (RepositoryCollection)service.RepositoryCollection;
+            var sessionTests = await service.GetEntitiesBy<SessionTest>(a => a.SessionId == sessionId, s => new SessionTest()
+            {
+                Id = s.Id,
+                AlgorithmId = s.AlgorithmId,
+                FitnessFunctionId = s.FitnessFunctionId,
+                Progress = s.Progress,
+            }).ToListAsync();
+
+            return sessionTests.ThrowIfNullOrEmpty(nameof(sessionTests)).ToList();
         }
     }
 }

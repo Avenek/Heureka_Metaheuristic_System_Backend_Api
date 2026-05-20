@@ -14,5 +14,15 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Extensions
                 
             return entity;
         }
+
+        public static IEnumerable<T> ThrowIfNullOrEmpty<T>(this IEnumerable<T>? entity, string message) where T : class
+        {
+            if (entity is null || !entity.Any())
+            {
+                throw new NotFoundException(message);
+            }
+
+            return entity;
+        }
     }
 }

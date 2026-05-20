@@ -42,5 +42,12 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Controllers
             await sessionService.ResumeSession(id, cancellationToken);
             return Ok();
         }
+
+        [HttpGet("{id}/progress")]
+        public async Task<IActionResult> GetSessionProgress([FromRoute] uint id)
+        {
+            var sessionTestDtos = await sessionService.GetSessionProgress(id);
+            return Ok(sessionTestDtos);
+        }
     }
 }

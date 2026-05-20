@@ -16,6 +16,7 @@ using Heureka_Metaheuristic_System_Backend_Api.ModelsDto.Requests.Algorithms;
 using Heureka_Metaheuristic_System_Backend_Api.ModelsDto.Requests.Sessions;
 using Heureka_Metaheuristic_System_Backend_Api.ModelsDto.Responses.FitnessFunctions;
 using Heureka_Metaheuristic_System_Backend_Api.ModelsDto.Responses.Sessions;
+using Heureka_Metaheuristic_System_Backend_Api.ModelsDto.Responses.SessionTests;
 using Heureka_Metaheuristic_System_Backend_Api.Reflection;
 using Heureka_Metaheuristic_System_Backend_Api.Reflection.Adapters;
 using Sprache;
@@ -27,8 +28,9 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Services
     {
         Task<IEnumerable<SessionDto>> GetAll(uint? stateId);
         Task DeleteById(uint id);
-        Task<SessionDto> CreateSession(CreateSessionDto createSessionDto);
+        Task<SessionWithTestsDto> CreateSession(CreateSessionDto createSessionDto);
         Task ResumeSession(uint id, CancellationToken cancellationToken);
+        Task<List<SessionTestDto>> GetSessionProgress(uint id);
     }
 
     public class SessionService : ISessionService
@@ -55,7 +57,7 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Services
             await executionService.PerformDeleteSessionOperations(id);
         }
 
-        public async Task<SessionDto> CreateSession(CreateSessionDto createSessionDto)
+        public async Task<SessionWithTestsDto> CreateSession(CreateSessionDto createSessionDto)
         {
             var executionService = executionServiceFactory();
             var session = new Session
@@ -69,15 +71,34 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Services
 
             var testCombinations = sessionTestRunner.CreateSessionTestCombinations(sessionTestData, executionService);
 
-            await CreateSessionTestsInDatabase(executionService, testCombinations);
+            var sessionTests = await CreateSessionTestsInDatabase(executionService, testCombinations);
 
             var mapper = executionService.GetMappingService<DataDtoMappingService>().Mapper;
-            return mapper.Map<SessionDto>(session);
+            return new SessionWithTestsDto
+            {
+                Id = session.Id,
+                State = session.StateId,
+                Tests = sessionTests.Select(t => new SessionTestDto
+                {
+                    Id = t.Id,
+                    AlgorithmId = t.AlgorithmId,
+                    FitnessFunctionId = t.FitnessFunctionId,
+                    Progress = t.Progress
+                }).ToList()
+            };
         }
 
         public async Task ResumeSession(uint id, CancellationToken cancellationToken)
         {
             await sessionTestRunner.ResumeSessionAsync(id, cancellationToken);
+        }
+
+        public async Task<List<SessionTestDto>> GetSessionProgress(uint sessionId)
+        {
+            var executionService = executionServiceFactory();
+            var mapper = executionService.GetMappingService<DataDtoMappingService>().Mapper;
+            var sessionTests = await executionService.GetSessionTestsProgressesBySessionId(sessionId);
+            return mapper.Map<List<SessionTestDto>>(sessionTests);
         }
 
         private async Task<SessionTestsData> BuildSessionData(DatabaseOperationExecutionService executionService, CreateSessionDto createSessionDto)
@@ -100,7 +121,7 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Services
             };
         }
 
-        private async Task CreateSessionTestsInDatabase(DatabaseOperationExecutionService executionService, List<SingleSessionTestRunner> tests)
+        private async Task<List<SessionTest>> CreateSessionTestsInDatabase(DatabaseOperationExecutionService executionService, List<SingleSessionTestRunner> tests)
         {
             var entities = tests.Select(t => new SessionTest
             {
@@ -121,6 +142,8 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Services
                     e.AlgorithmId == t.AlgorithmId &&
                     e.FitnessFunctionId == t.FitnessFunction.Id).Id;
             }
+
+            return entities;
         }
     }
 }
