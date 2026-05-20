@@ -28,6 +28,7 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Services
         Task<IEnumerable<SessionDto>> GetAll(uint? stateId);
         Task DeleteById(uint id);
         Task CreateSession(CreateSessionDto createSessionDto, CancellationToken cancellationToken);
+        Task ResumeSession(uint id, CancellationToken cancellationToken);
     }
 
     public class SessionService : ISessionService
@@ -57,6 +58,11 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Services
         public async Task CreateSession(CreateSessionDto createSessionDto, CancellationToken cancellationToken)
         {
             await sessionTestRunner.RunAsync(createSessionDto, cancellationToken);
+        }
+
+        public async Task ResumeSession(uint id, CancellationToken cancellationToken)
+        {
+            await sessionTestRunner.ResumeSessionAsync(id, cancellationToken);
         }
     }
 }

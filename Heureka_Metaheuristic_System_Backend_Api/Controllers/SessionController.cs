@@ -35,5 +35,12 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Controllers
             await sessionService.CreateSession(createSessionDto, cancellationToken);
             return Ok();
         }
+
+        [HttpPost("{id}/resume")]
+        public async Task<IActionResult> ResumeSession([FromRoute] uint id, CancellationToken cancellationToken)
+        {
+            await sessionService.ResumeSession(id, cancellationToken);
+            return Ok();
+        }
     }
 }

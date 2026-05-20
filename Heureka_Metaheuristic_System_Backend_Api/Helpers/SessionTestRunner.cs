@@ -1,5 +1,4 @@
-﻿using AutoMapper;
-using Heureka_Metaheuristic_System_Backend_Api.Database;
+﻿using Heureka_Metaheuristic_System_Backend_Api.Database;
 using Heureka_Metaheuristic_System_Backend_Api.Database.Operations.Algorithms;
 using Heureka_Metaheuristic_System_Backend_Api.Database.Operations.FitnessFunctions;
 using Heureka_Metaheuristic_System_Backend_Api.Database.Operations.Sessions;
@@ -9,6 +8,7 @@ using Heureka_Metaheuristic_System_Backend_Api.DataClasses;
 using Heureka_Metaheuristic_System_Backend_Api.Entities;
 using Heureka_Metaheuristic_System_Backend_Api.Enums;
 using Heureka_Metaheuristic_System_Backend_Api.Exceptions;
+using Heureka_Metaheuristic_System_Backend_Api.Helpers;
 using Heureka_Metaheuristic_System_Backend_Api.MappingProfiles;
 using Heureka_Metaheuristic_System_Backend_Api.ModelsDto;
 using Heureka_Metaheuristic_System_Backend_Api.ModelsDto.Requests.Algorithms;
@@ -43,11 +43,35 @@ public class SessionTestRunner
 
         var sessionTestData = await BuildSessionData(executionService, createSessionDto, ct);
 
-        var testCombinations = CreateSessionTestCombinations(sessionTestData, executionService);
+        var testCombinations = CreateSessionTestCombinations(sessionTestData, executionService, () => new NewTestRunner());
 
         await CreateSessionTestsInDatabase(executionService, testCombinations);
 
         await ExecuteAllTests(executionService, session.Id, testCombinations, ct);
+    }
+
+    public async Task ResumeSessionAsync(uint sessionId, CancellationToken ct)
+    {
+        var executionService = executionServiceFactory();
+        await EnsureNoRunningSessions(executionService);
+
+        var sessionData = await executionService.GetSessionTestsDataBySessionId(sessionId);
+
+        var sessionTestData = new SessionTestsData
+        {
+            SessionId = sessionId,
+            Algorithms = sessionData.ToDictionary(s => s.AlgorithmId, s => s.Algorithm),
+            FitnessFunctions = sessionData.ToDictionary(s => s.FitnessFunctionId, s => s.FitnessFunction),
+            NumberOfRunsPerParameterSet = sessionData.First().TestInvokePerParameters,
+            CancellationToken = ct,
+            OverrideAlgorithmParametersConfig = sessionData.ToDictionary(
+                s => s.AlgorithmId,
+                s => JsonSerializer.Deserialize<List<AlgorithmParameterDto>>(s.ParametersConfig) ?? new List<AlgorithmParameterDto>())
+        };
+
+        var testCombinations = CreateSessionTestCombinations(sessionTestData, executionService, () => new ResumeTestRunner(executionService));
+
+        await ExecuteAllTests(executionService, sessionId, testCombinations, ct);
     }
 
     private static async Task EnsureNoRunningSessions(DatabaseOperationExecutionService executionService)
@@ -71,28 +95,28 @@ public class SessionTestRunner
         return session;
     }
 
-    private async Task<SessionTestsData> BuildSessionData(DatabaseOperationExecutionService executionService,CreateSessionDto dto, CancellationToken ct)
+    private async Task<SessionTestsData> BuildSessionData(DatabaseOperationExecutionService executionService, CreateSessionDto createSessionDto, CancellationToken ct)
     {
-        var algorithms = await executionService.GetAlgorithmWithParametersByIds(dto.AlgorithmIds);
-        var fitnessFunctions = await executionService.GetFitnessFunctionForTestByIds(dto.FitnessFunctionIds);
+        var algorithms = await executionService.GetAlgorithmWithParametersByIds(createSessionDto.AlgorithmIds);
+        var fitnessFunctions = await executionService.GetFitnessFunctionForTestByIds(createSessionDto.FitnessFunctionIds);
 
-        if (algorithms.Count != dto.AlgorithmIds.Length)
+        if (algorithms.Count != createSessionDto.AlgorithmIds.Length)
             throw new NotFoundException("One or more algorithms were not found.");
 
-        if (fitnessFunctions.Count != dto.FitnessFunctionIds.Length)
+        if (fitnessFunctions.Count != createSessionDto.FitnessFunctionIds.Length)
             throw new NotFoundException("One or more fitness functions were not found.");
 
         return new SessionTestsData
         {
             Algorithms = algorithms.ToDictionary(a => a.Id, a => a),
             FitnessFunctions = fitnessFunctions.ToDictionary(f => f.Id, f => f),
-            NumberOfRunsPerParameterSet = dto.NumberOfRunsPerParameterSet,
+            NumberOfRunsPerParameterSet = createSessionDto.NumberOfRunsPerParameterSet,
             CancellationToken = ct,
-            OverrideAlgorithmParametersConfig = dto.OverrideParametersConfig
+            OverrideAlgorithmParametersConfig = createSessionDto.OverrideParametersConfig
         };
     }
 
-    private List<SingleSessionTestData> CreateSessionTestCombinations(SessionTestsData sessionData, DatabaseOperationExecutionService executionService)
+    private List<SingleSessionTestRunner> CreateSessionTestCombinations(SessionTestsData sessionData, DatabaseOperationExecutionService executionService, Func<SingleSessionTestRunner> runnerFactory)
     {
         var mapper = executionService
             .GetMappingService<DataDtoMappingService>()
@@ -124,16 +148,16 @@ public class SessionTestRunner
                     parameters = MergeOverrideParameters(parameters, overrideParams);
                 }
 
-                return new SingleSessionTestData
-                {
-                    SessionId = sessionData.SessionId,
-                    AlgorithmId = algorithm.Id,
-                    FitnessFunction = mapper.Map<FitnessFunctionDto>(fitness),
-                    AlgorithmInstance = algorithmInstance,
-                    FitnessFunctionInstance = fitnessInstance,
-                    NumberOfRunsPerParameterSet = sessionData.NumberOfRunsPerParameterSet,
-                    AlgorithmParametersConfig = parameters
-                };
+                var runner = runnerFactory();
+                runner.SessionId = sessionData.SessionId;
+                runner.AlgorithmId = algorithm.Id;
+                runner.FitnessFunction = mapper.Map<FitnessFunctionDto>(fitness);
+                runner.AlgorithmInstance = algorithmInstance;
+                runner.FitnessFunctionInstance = fitnessInstance;
+                runner.NumberOfRunsPerParameterSet = sessionData.NumberOfRunsPerParameterSet;
+                runner.AlgorithmParametersConfig = parameters;
+
+                return runner;
             }).ToList();
     }
 
@@ -144,7 +168,7 @@ public class SessionTestRunner
         return parameters.Select(p => dict.TryGetValue(p.Id, out var o) ? o : p).ToList();
     }
 
-    private async Task CreateSessionTestsInDatabase(DatabaseOperationExecutionService executionService, List<SingleSessionTestData> tests)
+    private async Task CreateSessionTestsInDatabase(DatabaseOperationExecutionService executionService, List<SingleSessionTestRunner> tests)
     {
         var entities = tests.Select(t => new SessionTest
         {
@@ -167,7 +191,7 @@ public class SessionTestRunner
         }
     }
 
-    private async Task ExecuteAllTests(DatabaseOperationExecutionService executionService, uint sessionId,List<SingleSessionTestData> tests, CancellationToken ct)
+    private async Task ExecuteAllTests(DatabaseOperationExecutionService executionService, uint sessionId, List<SingleSessionTestRunner> tests, CancellationToken ct)
     {
         int failureHandled = 0;
 
@@ -184,7 +208,8 @@ public class SessionTestRunner
             {
                 try
                 {
-                    await PrepareAndRunTests(executionService, test, token);
+                    test.PrepareInitializeParameters();
+                    await InvokeTests(executionService, test, ct);
                 }
                 catch
                 {
@@ -199,43 +224,27 @@ public class SessionTestRunner
         await UpdateSessionState(executionService, sessionId, ESessionState.Finished);
     }
 
-    private async Task PrepareAndRunTests(DatabaseOperationExecutionService executionService,SingleSessionTestData test, CancellationToken ct)
-    {
-        int minDim = GetMinimalDimension(test);
-
-        double[] parameters = test.AlgorithmParametersConfig
-            .Select(p => p.MinValue)
-            .ToArray();
-
-        await InvokeTests(executionService, test, minDim, parameters, ct);
-    }
-
-    private async Task InvokeTests(DatabaseOperationExecutionService executionService, SingleSessionTestData test, int startDim, double[] parameters, CancellationToken ct)
+    private async Task InvokeTests(DatabaseOperationExecutionService executionService, SingleSessionTestRunner test, CancellationToken ct)
     {
         var resultsBuffer = new List<SessionTestResult>();
-
-        int minDim = GetMinimalDimension(test);
         int maxDim = test.FitnessFunction.Dimension ?? 27;
-
-        int step = test.FitnessFunction.Dimension.HasValue ? 1 : (maxDim - minDim) / PARAMETER_GRID_STEP_COUNT;
-
+        int dimensionStep = test.FitnessFunction.Dimension.HasValue ? 1 : (maxDim - test.MinimalDimension) / PARAMETER_GRID_STEP_COUNT;
         int iterations = 0;
-
         double totallIterations = Math.Pow(PARAMETER_GRID_STEP_COUNT, test.AlgorithmParametersConfig.Count);
+        var parameters = test.InitialParameters.ToArray();
 
         try
         {
-            for (int dim = startDim; dim <= maxDim; dim += step)
+            for (int dim = test.InitialDimension; dim <= maxDim; dim += dimensionStep)
             {
                 ct.ThrowIfCancellationRequested();
 
-                var result = await InvokeTestForParameters(test, parameters, (uint)dim, ct);
+                var result = await InvokeTestForParameters(test, parameters,(uint)dim, ct);
                 resultsBuffer.Add(result);
 
                 if (resultsBuffer.Count >= RESULTS_BATCH_SIZE)
                 {
-                    await executionService.PerformCreateSessionTestResultsOperations(resultsBuffer);
-                    resultsBuffer.Clear();
+                    await CreateResultsTestBatch(executionService, resultsBuffer);
                 }
 
                 if (TryIncreaseParams(parameters, test.AlgorithmParametersConfig, out parameters))
@@ -256,16 +265,25 @@ public class SessionTestRunner
             }
         }
         catch
+        { 
+            throw;
+        }
+        finally
         {
             if (resultsBuffer.Count != 0)
             {
-                await executionService.PerformCreateSessionTestResultsOperations(resultsBuffer);
+                await CreateResultsTestBatch(executionService, resultsBuffer);
             }
-            throw;
         }
     }
 
-    private async Task<SessionTestResult> InvokeTestForParameters(SingleSessionTestData test, double[] parameters, uint dimension, CancellationToken ct)
+    private async Task CreateResultsTestBatch(DatabaseOperationExecutionService executionService, List<SessionTestResult> resultsBuffer)
+    {
+        await executionService.PerformCreateSessionTestResultsOperations(resultsBuffer);
+        resultsBuffer.Clear();
+    }
+
+    private async Task<SessionTestResult> InvokeTestForParameters(SingleSessionTestRunner test, double[] parameters, uint dimension, CancellationToken ct)
     {
         var iterations = new List<TestIterationResults>();
 
@@ -307,7 +325,7 @@ public class SessionTestRunner
             FBest = best.FBest,
             Dimension = dimension,
             FitnessFunctionEvaluations = best.FitnessFunctionEvaluations,
-            ParametersGrid = JsonSerializer.Serialize(grid)
+            ParametersGrid = JsonSerializer.Serialize(grid.OrderBy(p => p.Key).ToDictionary(p => p.Key, p => p.Value))
         };
     }
 
@@ -367,6 +385,4 @@ public class SessionTestRunner
 
         return result;
     }
-
-    private int GetMinimalDimension(SingleSessionTestData test) => test.FitnessFunction.Dimension ?? 2;
 }

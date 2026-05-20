@@ -46,6 +46,7 @@ namespace Heureka_Metaheuristic_System_Backend_Api.Database.Operations.Algorithm
                     {
                         Id = a.Id,
                         FileName = a.FileName,
+                        ClassName = a.ClassName,
                         Parameters = a.Parameters.Select(p => new AlgorithmParameter() { Id = p.Id, MinValue = p.MinValue, MaxValue = p.MaxValue }).ToList()
                     })
                 .ToListAsync();
